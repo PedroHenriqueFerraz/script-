@@ -1,35 +1,21 @@
 
 --========================================
 -- PEDRO HUB
--- Version: 1.1.0
--- Interface Module
+-- Version: 2.0.0
+-- Interface + Auto Farm
 --========================================
 
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local guiName = "PedroHub"
+local player = Players.LocalPlayer
+local remote = ReplicatedStorage:WaitForChild("AutoFarmEvent")
 
--- Localizar interface anterior
-local parent
+local gui = Instance.new("ScreenGui")
+gui.Name = "PedroHub"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
-if gethui then
-    local success, result = pcall(gethui)
-
-    if success then
-        parent = result
-    end
-end
-
-parent = parent or CoreGui
-
-local old = parent:FindFirstChild(guiName)
-
-if old then
-    old:Destroy()
-end
-
--- Estados dos módulos
 local states = {
     ["Auto Farm"] = false,
     ["Auto Recarregar Lâminas"] = false,
@@ -37,19 +23,8 @@ local states = {
     ["Auto Execute"] = false
 }
 
--- Eventos dos módulos
-local callbacks = {}
-
--- Criar interface
-local gui = Instance.new("ScreenGui")
-gui.Name = guiName
-gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = parent
-
--- Janela principal
+-- Janela
 local main = Instance.new("Frame")
-main.Name = "Main"
 main.Size = UDim2.fromOffset(310, 260)
 main.Position = UDim2.new(0.5, -155, 0.5, -130)
 main.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
@@ -59,9 +34,7 @@ main.Active = true
 main.Draggable = true
 main.Parent = gui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 9)
-corner.Parent = main
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 9)
 
 local stroke = Instance.new("UIStroke")
 stroke.Color = Color3.fromRGB(100, 90, 115)
@@ -113,7 +86,7 @@ separator.BackgroundColor3 = Color3.fromRGB(75, 75, 85)
 separator.BorderSizePixel = 0
 separator.Parent = main
 
--- Área dos botões
+-- Botões
 local container = Instance.new("Frame")
 container.Size = UDim2.new(1, -24, 1, -65)
 container.Position = UDim2.fromOffset(12, 55)
@@ -122,37 +95,22 @@ container.Parent = main
 
 local layout = Instance.new("UIListLayout")
 layout.Padding = UDim.new(0, 8)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = container
 
--- Atualizar aparência
-local function updateButton(name, buttonData)
-    local enabled = states[name]
-
-    if enabled then
-        buttonData.indicator.BackgroundColor3 =
-            Color3.fromRGB(145, 100, 210)
-
-        buttonData.circle.Position =
-            UDim2.new(1, -17, 0, 3)
-    else
-        buttonData.indicator.BackgroundColor3 =
-            Color3.fromRGB(75, 75, 80)
-
-        buttonData.circle.Position =
-            UDim2.fromOffset(3, 3)
-    end
-end
-
-local buttons = {}
-
--- Criar opções
 local options = {
     "Auto Farm",
     "Auto Recarregar Lâminas",
     "Auto Retry",
     "Auto Execute"
 }
+
+local function setToggle(name, value)
+    states[name] = value
+
+    if name == "Auto Farm" then
+        remote:FireServer(value)
+    end
+end
 
 for index, name in ipairs(options) do
 
@@ -165,9 +123,8 @@ for index, name in ipairs(options) do
     button.LayoutOrder = index
     button.Parent = container
 
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = button
+    Instance.new("UICorner", button).CornerRadius =
+        UDim.new(0, 6)
 
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -65, 1, 0)
@@ -187,9 +144,8 @@ for index, name in ipairs(options) do
     indicator.BorderSizePixel = 0
     indicator.Parent = button
 
-    local indicatorCorner = Instance.new("UICorner")
-    indicatorCorner.CornerRadius = UDim.new(1, 0)
-    indicatorCorner.Parent = indicator
+    Instance.new("UICorner", indicator).CornerRadius =
+        UDim.new(1, 0)
 
     local circle = Instance.new("Frame")
     circle.Size = UDim2.fromOffset(14, 14)
@@ -198,59 +154,30 @@ for index, name in ipairs(options) do
     circle.BorderSizePixel = 0
     circle.Parent = indicator
 
-    local circleCorner = Instance.new("UICorner")
-    circleCorner.CornerRadius = UDim.new(1, 0)
-    circleCorner.Parent = circle
-
-    buttons[name] = {
-        indicator = indicator,
-        circle = circle
-    }
+    Instance.new("UICorner", circle).CornerRadius =
+        UDim.new(1, 0)
 
     button.MouseButton1Click:Connect(function()
 
-        states[name] = not states[name]
+        local newState = not states[name]
+        setToggle(name, newState)
 
-        updateButton(name, buttons[name])
+        if newState then
+            indicator.BackgroundColor3 =
+                Color3.fromRGB(145, 100, 210)
 
-        if callbacks[name] then
-            callbacks[name](states[name])
+            circle.Position = UDim2.new(1, -17, 0, 3)
+        else
+            indicator.BackgroundColor3 =
+                Color3.fromRGB(75, 75, 80)
+
+            circle.Position = UDim2.fromOffset(3, 3)
         end
 
-        print(name .. ": " ..
-            (states[name] and "ATIVADO" or "DESATIVADO"))
     end)
 end
 
--- API para conectar módulos
-local PedroHub = {}
-
-function PedroHub.SetToggle(name, enabled)
-    if states[name] == nil then
-        return
-    end
-
-    states[name] = enabled
-    updateButton(name, buttons[name])
-
-    if callbacks[name] then
-        callbacks[name](enabled)
-    end
-end
-
-function PedroHub.GetToggle(name)
-    return states[name]
-end
-
-function PedroHub.OnToggle(name, callback)
-    if states[name] == nil then
-        return
-    end
-
-    callbacks[name] = callback
-end
-
--- Minimizar / restaurar
+-- Minimizar
 local minimized = false
 
 minimize.MouseButton1Click:Connect(function()
@@ -266,13 +193,138 @@ end)
 
 -- Fechar
 close.MouseButton1Click:Connect(function()
-    for name in pairs(states) do
-        PedroHub.SetToggle(name, false)
-    end
-
+    setToggle("Auto Farm", false)
     gui:Destroy()
 end)
 
-print("PEDRO HUB carregado com sucesso!")
+print("PEDRO HUB carregado!")
 
-return PedroHub
+
+
+--========================================
+-- PEDRO HUB | AUTO FARM SERVER
+-- Version: 2.0.0
+--========================================
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local DAMAGE = 9999999
+local HEIGHT = 8
+local ATTACK_DELAY = 0.5
+local SEARCH_DELAY = 1
+
+-- Criar evento de comunicação
+local remote = ReplicatedStorage:FindFirstChild("AutoFarmEvent")
+
+if not remote then
+    remote = Instance.new("RemoteEvent")
+    remote.Name = "AutoFarmEvent"
+    remote.Parent = ReplicatedStorage
+end
+
+local active = {}
+
+-- Verificar NPC
+local function isNPC(object)
+
+    if not object:IsA("Model") then
+        return false
+    end
+
+    if Players:GetPlayerFromCharacter(object) then
+        return false
+    end
+
+    local humanoid = object:FindFirstChildOfClass("Humanoid")
+    local root = object:FindFirstChild("HumanoidRootPart")
+
+    return humanoid ~= nil
+        and root ~= nil
+        and humanoid.Health > 0
+end
+
+-- Procurar NPCs
+local function findNPC()
+
+    for _, object in ipairs(Workspace:GetDescendants()) do
+
+        if isNPC(object) then
+            return object
+        end
+
+    end
+
+    return nil
+end
+
+-- Desligar Auto Farm
+local function stopFarm(player)
+    active[player] = nil
+end
+
+-- Ativação
+remote.OnServerEvent:Connect(function(player, enabled)
+
+    if typeof(enabled) ~= "boolean" then
+        return
+    end
+
+    if not enabled then
+        stopFarm(player)
+        return
+    end
+
+    if active[player] then
+        return
+    end
+
+    active[player] = true
+
+    task.spawn(function()
+
+        while active[player] do
+
+            local character = player.Character
+            local playerRoot = character
+                and character:FindFirstChild("HumanoidRootPart")
+
+            local npc = findNPC()
+
+            if playerRoot and npc then
+
+                local humanoid =
+                    npc:FindFirstChildOfClass("Humanoid")
+
+                local npcRoot =
+                    npc:FindFirstChild("HumanoidRootPart")
+
+                if humanoid and npcRoot and humanoid.Health > 0 then
+
+                    -- Posicionar jogador acima do NPC
+                    playerRoot.CFrame =
+                        npcRoot.CFrame * CFrame.new(0, HEIGHT, 0)
+
+                    -- Aplicar dano no servidor
+                    humanoid:TakeDamage(DAMAGE)
+
+                    task.wait(ATTACK_DELAY)
+                end
+
+            else
+                task.wait(SEARCH_DELAY)
+            end
+
+            task.wait()
+        end
+
+    end)
+
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    active[player] = nil
+end)
+
+print("PEDRO HUB AUTO FARM SERVER carregado!")
