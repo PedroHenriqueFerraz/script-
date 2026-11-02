@@ -19,6 +19,103 @@ if gethui then
     end
 end
 
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local DAMAGE = 9999
+local HEIGHT = 8
+local ATTACK_DELAY = 0.5
+local SEARCH_DELAY = 1
+
+-- Uma única Part reutilizável
+local hitbox = Instance.new("Part")
+hitbox.Name = "PedroHub_Hitbox"
+hitbox.Size = Vector3.new(8, 8, 8)
+hitbox.Transparency = 1
+hitbox.Anchored = true
+hitbox.CanCollide = false
+hitbox.CanTouch = false
+hitbox.CanQuery = false
+hitbox.Parent = Workspace
+
+local function getPlayer()
+    while true do
+        local player = Players:GetPlayers()[1]
+
+        if player and player.Character then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                return player, root
+            end
+        end
+
+        task.wait(1)
+    end
+end
+
+local function isNPC(model)
+    if not model:IsA("Model") then
+        return false
+    end
+
+    if Players:GetPlayerFromCharacter(model) then
+        return false
+    end
+
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    local root = model:FindFirstChild("HumanoidRootPart")
+
+    return humanoid ~= nil
+        and root ~= nil
+        and humanoid.Health > 0
+end
+
+local function findNPC()
+    for _, object in ipairs(Workspace:GetDescendants()) do
+        if isNPC(object) then
+            return object
+        end
+    end
+
+    return nil
+end
+
+local player, playerRoot = getPlayer()
+
+while true do
+    local npc = findNPC()
+
+    if npc then
+        local humanoid = npc:FindFirstChildOfClass("Humanoid")
+        local npcRoot = npc:FindFirstChild("HumanoidRootPart")
+
+        if humanoid and npcRoot and humanoid.Health > 0 then
+            -- Posiciona o jogador acima do NPC
+            playerRoot.CFrame = npcRoot.CFrame * CFrame.new(0, HEIGHT, 0)
+
+            -- Reposiciona a mesma hitbox
+            hitbox.CFrame = npcRoot.CFrame
+
+            -- Aplica dano pelo servidor
+            humanoid:TakeDamage(DAMAGE)
+
+            task.wait(ATTACK_DELAY)
+        end
+    else
+        task.wait(SEARCH_DELAY)
+    end
+
+    -- Atualiza referências caso o personagem renasça
+    if not player.Character
+        or not player.Character:FindFirstChild("HumanoidRootPart") then
+
+        player.CharacterAdded:Wait()
+    end
+
+    playerRoot = player.Character:WaitForChild("HumanoidRootPart")
+end
+
 parent = parent or CoreGui
 
 pcall(function()
