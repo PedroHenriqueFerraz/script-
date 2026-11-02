@@ -106,5 +106,42 @@ task.spawn(function()
     end
 
 end)
+--========================================
+-- MOVIMENTAÇÃO E COMBATE
+--========================================
+
+local HEIGHT = 8
+local DAMAGE = 9999999
+local ATTACK_DELAY = 0.5
+
+local function attackNPC(player, npc)
+
+    if not enabled then return end
+    if not player or not player.Character then return end
+    if not isNPC(npc) then return end
+
+    local character = player.Character
+    local playerRoot =
+        character:FindFirstChild("HumanoidRootPart")
+
+    local humanoid =
+        npc:FindFirstChildOfClass("Humanoid")
+
+    local npcRoot =
+        npc:FindFirstChild("HumanoidRootPart")
+
+    if not playerRoot or not humanoid or not npcRoot then
+        return
+    end
+
+    -- Movimentar o jogador acima do NPC
+    playerRoot.CFrame =
+        npcRoot.CFrame * CFrame.new(0, HEIGHT, 0)
+
+    -- Aplicar dano
+    humanoid:TakeDamage(DAMAGE)
+
+    task.wait(ATTACK_DELAY)
+end
 
 return AutoFarm
