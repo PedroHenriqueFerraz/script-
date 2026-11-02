@@ -1,147 +1,62 @@
 
 --========================================
 -- PEDRO HUB | AUTO FARM
--- Version: 1.0.0
--- Roblox Studio - ModuleScript
+-- Version: 2.0.0
 --========================================
 
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
+local ReplicatedStorage =
+    game:GetService("ReplicatedStorage")
 
 local AutoFarm = {}
 
 -- Configurações
-local SEARCH_DELAY = 1
+AutoFarm.HEIGHT = 8
+AutoFarm.DAMAGE = 9999999
+AutoFarm.ATTACK_DELAY = 0.5
+AutoFarm.SEARCH_DELAY = 1
+
+-- Comunicação com o servidor
+local remote = ReplicatedStorage:
+    WaitForChild("AutoFarmEvent")
 
 -- Estado
 local enabled = false
-local currentTarget = nil
-local targetChanged = Instance.new("BindableEvent")
 
--- Verificar se é um NPC válido
-local function isNPC(object)
+-- Ativar ou desativar
+function AutoFarm.SetEnabled(value)
 
-    if not object:IsA("Model") then
-        return false
+    if typeof(value) ~= "boolean" then
+        return
     end
 
-    -- Ignorar personagens de jogadores
-    if Players:GetPlayerFromCharacter(object) then
-        return false
+    if enabled == value then
+        return
     end
 
-    local humanoid =
-        object:FindFirstChildOfClass("Humanoid")
+    enabled = value
 
-    local root =
-        object:FindFirstChild("HumanoidRootPart")
+    remote:FireServer(
+        enabled,
+        AutoFarm.HEIGHT,
+        AutoFarm.DAMAGE,
+        AutoFarm.ATTACK_DELAY,
+        AutoFarm.SEARCH_DELAY
+    )
 
-    return humanoid ~= nil
-        and root ~= nil
-        and humanoid.Health > 0
+    print(
+        "PEDRO HUB | AUTO FARM: " ..
+        (enabled and "ATIVADO" or "DESATIVADO")
+    )
 end
 
--- Procurar NPCs no Workspace
-function AutoFarm.FindNPCs()
-
-    local results = {}
-
-    for _, object in ipairs(
-        Workspace:GetDescendants()
-    ) do
-
-        if isNPC(object) then
-            table.insert(results, object)
-        end
-    end
-
-    return results
-end
-
--- Obter alvo atual
-function AutoFarm.GetTarget()
-    return currentTarget
-end
-
--- Verificar estado
+-- Consultar estado
 function AutoFarm.IsEnabled()
     return enabled
 end
 
--- Ativar / desativar
-function AutoFarm.SetEnabled(value)
-
-    enabled = value
-
-    if not enabled then
-        currentTarget = nil
-        targetChanged:Fire(nil)
-    end
-end
-
--- Evento de mudança de alvo
-function AutoFarm.OnTargetChanged(callback)
-
-    targetChanged.Event:Connect(callback)
-
-end
-
--- Ciclo de detecção
-task.spawn(function()
-
-    while true do
-
-        if enabled then
-
-            local npcs = AutoFarm.FindNPCs()
-
-            currentTarget = npcs[1]
-
-            targetChanged:Fire(currentTarget)
-
-        end
-
-        task.wait(SEARCH_DELAY)
-
-    end
-
-end)
---========================================
--- MOVIMENTAÇÃO E COMBATE
---========================================
-
-local HEIGHT = 8
-local DAMAGE = 9999999
-local ATTACK_DELAY = 0.5
-
-local function attackNPC(player, npc)
-
-    if not enabled then return end
-    if not player or not player.Character then return end
-    if not isNPC(npc) then return end
-
-    local character = player.Character
-    local playerRoot =
-        character:FindFirstChild("HumanoidRootPart")
-
-    local humanoid =
-        npc:FindFirstChildOfClass("Humanoid")
-
-    local npcRoot =
-        npc:FindFirstChild("HumanoidRootPart")
-
-    if not playerRoot or not humanoid or not npcRoot then
-        return
-    end
-
-    -- Movimentar o jogador acima do NPC
-    playerRoot.CFrame =
-        npcRoot.CFrame * CFrame.new(0, HEIGHT, 0)
-
-    -- Aplicar dano
-    humanoid:TakeDamage(DAMAGE)
-
-    task.wait(ATTACK_DELAY)
+-- Desligar
+function AutoFarm.Stop()
+    AutoFarm.SetEnabled(false)
 end
 
 return AutoFarm
